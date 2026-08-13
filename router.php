@@ -16,7 +16,7 @@ if (preg_match('#^/(admin|api)(/.*)?$#', $uri, $matches)) {
         $file = rtrim($file, '/') . '/index.php';
     }
 
-    if (str_ends_with($file, '.php') && file_exists($file)) {
+    if (substr($file, -4) === '.php' && file_exists($file)) {
         chdir(dirname($file));
         require $file;
         return true;

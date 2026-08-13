@@ -87,11 +87,16 @@ function create_watermarked_copy(string $sourcePath, string $mime): ?string
         return null;
     }
 
-    $image = match ($mime) {
-        'image/png' => imagecreatefrompng($sourcePath),
-        'image/webp' => function_exists('imagecreatefromwebp') ? imagecreatefromwebp($sourcePath) : null,
-        default => imagecreatefromjpeg($sourcePath),
-    };
+    switch ($mime) {
+        case 'image/png':
+            $image = imagecreatefrompng($sourcePath);
+            break;
+        case 'image/webp':
+            $image = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($sourcePath) : null;
+            break;
+        default:
+            $image = imagecreatefromjpeg($sourcePath);
+    }
 
     if (!$image) {
         return null;
