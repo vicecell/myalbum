@@ -42,7 +42,7 @@ include __DIR__ . '/../layout/header.php';
             <?php foreach ($talents as $talent): ?>
                 <li class="list-item talent-card">
                     <a href="/admin/talents/detail.php?id=<?= (int) $talent['id'] ?>" class="talent-card-link">
-                        <img src="<?= e($talent['primary_photo'] ?: '/assets/img/placeholder.svg') ?>" alt="" class="talent-thumb" style="object-position: <?= (float) ($talent['primary_photo_focal_x'] ?? 50) ?>% <?= (float) ($talent['primary_photo_focal_y'] ?? 50) ?>%;">
+                        <img src="<?= e($talent['primary_photo'] ?: '/assets/img/placeholder.svg') ?>" alt="" class="talent-thumb">
                         <div class="talent-meta">
                             <span class="list-item-title"><?= e($talent['name']) ?></span>
                             <span class="talent-city"><?= e($talent['city_name']) ?><?php if (!empty($talent['rate'])): ?> - <span class="talent-rate"><?= e($talent['rate']) ?></span><?php endif; ?></span>

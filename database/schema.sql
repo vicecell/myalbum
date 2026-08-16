@@ -65,11 +65,6 @@ CREATE TABLE talent_photos (
     original_filename VARCHAR(255) NULL,
     is_primary SMALLINT NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
-    -- Focal point (percent, 0-100) used as CSS object-position so thumbnails
-    -- crop around a face instead of the raw center; set via the focus picker
-    -- on the primary photo in the talent detail page.
-    focal_x NUMERIC(5,2) NOT NULL DEFAULT 50,
-    focal_y NUMERIC(5,2) NOT NULL DEFAULT 50,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL DEFAULT NULL,
     CONSTRAINT fk_talent_photos_talent FOREIGN KEY (talent_id) REFERENCES talents(id)

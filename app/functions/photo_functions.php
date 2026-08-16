@@ -53,17 +53,6 @@ function delete_talent_photo_record(int $photoId): void
     ]);
 }
 
-function update_photo_focus(int $photoId, float $focalX, float $focalY): void
-{
-    $focalX = max(0, min(100, $focalX));
-    $focalY = max(0, min(100, $focalY));
-
-    supabase_rest('PATCH', 'talent_photos', ['id' => 'eq.' . $photoId], [
-        'focal_x' => $focalX,
-        'focal_y' => $focalY,
-    ]);
-}
-
 function set_primary_photo(int $talentId, int $photoId): void
 {
     // Runs as a single Postgres transaction inside the DB function itself (see

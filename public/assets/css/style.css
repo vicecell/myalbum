@@ -391,7 +391,7 @@ body {
     width: 76px;
     height: 76px;
     border-radius: 18px;
-    object-fit: cover;
+    object-fit: contain;
     background: var(--color-primary-light);
     flex-shrink: 0;
 }
@@ -476,45 +476,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.focus-picker-overlay.is-open {
-    flex-direction: column;
-    gap: 16px;
-}
-
-.focus-picker-frame {
-    position: relative;
-    max-width: 100%;
-    max-height: 65vh;
-    line-height: 0;
-    cursor: crosshair;
-    touch-action: none;
-}
-
-.focus-picker-img {
-    max-width: 100%;
-    max-height: 65vh;
-    border-radius: 12px;
-    display: block;
-}
-
-.focus-picker-marker {
-    position: absolute;
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-pill);
-    border: 3px solid var(--color-primary);
-    background: rgba(255, 255, 255, 0.4);
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-}
-
-.focus-picker-hint {
-    color: #fff;
-    font-size: 13px;
-    text-align: center;
-    margin: 0;
 }
 
 .lightbox-nav {
