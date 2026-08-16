@@ -35,11 +35,11 @@ Then import `database/seed.sql` for the default city list (optional).
      -d '{"id":"talent-photos","name":"talent-photos","public":true}'
    ```
 2. Apply the schema (`database/schema.sql` is PostgreSQL DDL, includes the `set_primary_photo` RPC function) against the Supabase database via the SQL Editor in the Supabase dashboard (no local Postgres client needed).
-3. Run the app with PHP's built-in server (from project root), using `router.php` so `/admin/*` and `/api/*` (which live outside `public/`, per the folder structure) resolve correctly:
+3. Run the app with PHP's built-in server (from project root):
    ```bash
-   php -S localhost:8000 -t public router.php
+   php -S localhost:8000 -t public
    ```
 4. Open `http://localhost:8000/` in a browser (redirects to the login page).
 5. Visit `http://localhost:8000/_dbcheck.php` to verify the database connection (only works when `APP_ENV=local`).
 
-Note: this project assumes `public/` is served as the web root via the command above, with `router.php` handling `/admin/*` and `/api/*`. For a real Apache/Nginx deployment, either point the vhost's document root at `public/` and add rewrite rules for `/admin` and `/api` to the project root, or move those directories under `public/`.
+`admin/` and `api/` live under `public/` (`public/admin/`, `public/api/`) specifically so a real Apache/Nginx vhost with its document root pointed at `public/` serves them with zero extra rewrite rules — no `router.php`/custom routing needed anywhere.
