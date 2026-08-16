@@ -46,6 +46,8 @@ include __DIR__ . '/../layout/header.php';
         <input type="hidden" name="talent_id" value="<?= (int) $talent['id'] ?>">
         <label for="photos">Add photos (jpeg, png, webp; max <?= (int) MAX_IMAGE_SIZE_MB ?>MB each)</label>
         <input type="file" id="photos" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple>
+        <label for="photo_url">Or image URL</label>
+        <input type="url" id="photo_url" name="photo_url" placeholder="https://example.com/photo.jpg">
         <button type="submit" class="btn btn-primary btn-block" id="uploadBtn">Upload</button>
         <p id="uploadStatus" class="upload-status"></p>
     </form>

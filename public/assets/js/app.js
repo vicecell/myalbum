@@ -20,8 +20,9 @@
             e.preventDefault();
 
             var fileInput = document.getElementById('photos');
+            var urlInput = document.getElementById('photo_url');
 
-            if (!fileInput.files.length) {
+            if (!fileInput.files.length && !(urlInput && urlInput.value.trim())) {
                 return;
             }
 

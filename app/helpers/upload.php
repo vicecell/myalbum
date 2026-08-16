@@ -145,6 +145,80 @@ function create_watermarked_copy(string $sourcePath, string $mime): ?string
     return $outputPath;
 }
 
+function fetch_remote_image_to_temp(string $url): array
+{
+    $parts = parse_url($url);
+    $scheme = strtolower($parts['scheme'] ?? '');
+    $host = $parts['host'] ?? '';
+
+    if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+        throw new RuntimeException('Only http:// or https:// image URLs are allowed.');
+    }
+
+    // Block SSRF: refuse to let the server fetch anything on a private,
+    // loopback, link-local, or otherwise reserved network range.
+    $ips = @gethostbynamel($host);
+
+    if ($host === 'localhost' || $ips === false || empty($ips)) {
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : [];
+    }
+
+    if (empty($ips)) {
+        throw new RuntimeException('Could not resolve image URL host.');
+    }
+
+    foreach ($ips as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            throw new RuntimeException('That image URL points to a disallowed network address.');
+        }
+    }
+
+    $maxBytes = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+    $tmpPath = tempnam(sys_get_temp_dir(), 'remote_img_');
+    $fp = fopen($tmpPath, 'wb');
+
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $url,
+        CURLOPT_FILE => $fp,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_MAXFILESIZE_LARGE => $maxBytes,
+        CURLOPT_USERAGENT => 'TalentDatabaseBot/1.0',
+    ]);
+
+    $ok = curl_exec($ch);
+    $curlError = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    fclose($fp);
+
+    if (!$ok || $httpCode < 200 || $httpCode >= 300) {
+        @unlink($tmpPath);
+        throw new RuntimeException('Failed to download image URL: ' . ($curlError ?: "HTTP {$httpCode}"));
+    }
+
+    if (filesize($tmpPath) > $maxBytes) {
+        @unlink($tmpPath);
+        throw new RuntimeException('Downloaded image exceeds maximum size of ' . MAX_IMAGE_SIZE_MB . 'MB.');
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $tmpPath);
+    finfo_close($finfo);
+
+    if (!in_array($mime, ALLOWED_IMAGE_MIME_TYPES, true)) {
+        @unlink($tmpPath);
+        throw new RuntimeException('Unsupported file type: ' . $mime . '.');
+    }
+
+    $extensionMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $originalName = 'url-image.' . ($extensionMap[$mime] ?? 'jpg');
+
+    return ['tmp_path' => $tmpPath, 'original_name' => $originalName];
+}
+
 function validate_upload_file(array $file): ?string
 {
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
