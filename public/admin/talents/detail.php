@@ -29,10 +29,12 @@ include __DIR__ . '/../layout/header.php';
         <div class="photo-gallery">
             <?php foreach ($photos as $photo): ?>
                 <div class="photo-item" data-photo-id="<?= (int) $photo['id'] ?>">
-                    <img src="<?= e($photo['image_thumb_url'] ?: $photo['image_url']) ?>" data-full="<?= e($photo['image_url']) ?>" alt="" class="photo-gallery-img<?= $photo['is_primary'] ? ' is-primary' : '' ?>">
+                    <img src="<?= e($photo['image_thumb_url'] ?: $photo['image_url']) ?>" data-full="<?= e($photo['image_url']) ?>" alt="" class="photo-gallery-img<?= $photo['is_primary'] ? ' is-primary' : '' ?>" style="object-position: <?= (float) $photo['focal_x'] ?>% <?= (float) $photo['focal_y'] ?>%;">
                     <div class="photo-item-actions">
                         <?php if (!$photo['is_primary']): ?>
                             <button type="button" class="btn-link set-primary-btn" data-photo-id="<?= (int) $photo['id'] ?>">Set primary</button>
+                        <?php else: ?>
+                            <button type="button" class="btn-link set-focus-btn" data-photo-id="<?= (int) $photo['id'] ?>" data-full="<?= e($photo['image_url']) ?>" data-focal-x="<?= (float) $photo['focal_x'] ?>" data-focal-y="<?= (float) $photo['focal_y'] ?>">Set focus</button>
                         <?php endif; ?>
                         <button type="button" class="btn-link btn-link-danger delete-photo-btn" data-photo-id="<?= (int) $photo['id'] ?>">Delete</button>
                     </div>
@@ -78,6 +80,16 @@ include __DIR__ . '/../layout/header.php';
     <button type="button" class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Previous photo">&#8249;</button>
     <img src="" alt="" class="lightbox-img" id="lightboxImg">
     <button type="button" class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Next photo">&#8250;</button>
+</div>
+
+<div class="lightbox focus-picker-overlay" id="focusPicker">
+    <button type="button" class="lightbox-close" id="focusPickerClose" aria-label="Close">&times;</button>
+    <div class="focus-picker-frame" id="focusPickerFrame">
+        <img src="" alt="" class="focus-picker-img" id="focusPickerImg">
+        <div class="focus-picker-marker" id="focusPickerMarker"></div>
+    </div>
+    <p class="focus-picker-hint">Tap the face to center it in thumbnails</p>
+    <button type="button" class="btn btn-primary" id="focusPickerSave">Save</button>
 </div>
 
 <?php include __DIR__ . '/../layout/footer.php'; ?>

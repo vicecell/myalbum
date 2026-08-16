@@ -13,7 +13,7 @@ function count_active_talents(): int
 function get_talents(?string $search = null, ?int $cityId = null): array
 {
     $query = [
-        'select' => '*,cities(city_name),talent_photos(image_thumb_url)',
+        'select' => '*,cities(city_name),talent_photos(image_thumb_url,focal_x,focal_y)',
         'deleted_at' => 'is.null',
         'talent_photos.is_primary' => 'eq.1',
         'talent_photos.deleted_at' => 'is.null',
@@ -28,6 +28,8 @@ function get_talents(?string $search = null, ?int $cityId = null): array
     foreach ($rows as &$row) {
         $row['city_name'] = $row['cities']['city_name'] ?? null;
         $row['primary_photo'] = $row['talent_photos'][0]['image_thumb_url'] ?? null;
+        $row['primary_photo_focal_x'] = $row['talent_photos'][0]['focal_x'] ?? 50;
+        $row['primary_photo_focal_y'] = $row['talent_photos'][0]['focal_y'] ?? 50;
         unset($row['cities'], $row['talent_photos']);
     }
     unset($row);

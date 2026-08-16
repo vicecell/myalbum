@@ -162,3 +162,96 @@
         }
     });
 })();
+
+(function () {
+    var picker = document.getElementById('focusPicker');
+
+    if (!picker) {
+        return;
+    }
+
+    var frame = document.getElementById('focusPickerFrame');
+    var img = document.getElementById('focusPickerImg');
+    var marker = document.getElementById('focusPickerMarker');
+    var closeBtn = document.getElementById('focusPickerClose');
+    var saveBtn = document.getElementById('focusPickerSave');
+    var csrfInput = document.querySelector('#photoUploadForm input[name="csrf_token"]');
+    var csrfToken = csrfInput ? csrfInput.value : '';
+
+    var activePhotoId = null;
+    var focalX = 50;
+    var focalY = 50;
+
+    function placeMarker() {
+        marker.style.left = focalX + '%';
+        marker.style.top = focalY + '%';
+    }
+
+    function setFocalFromEvent(e) {
+        var rect = frame.getBoundingClientRect();
+        var point = e.touches && e.touches.length ? e.touches[0] : e;
+        focalX = Math.max(0, Math.min(100, ((point.clientX - rect.left) / rect.width) * 100));
+        focalY = Math.max(0, Math.min(100, ((point.clientY - rect.top) / rect.height) * 100));
+        placeMarker();
+    }
+
+    function closePicker() {
+        picker.classList.remove('is-open');
+        img.src = '';
+        activePhotoId = null;
+    }
+
+    document.querySelectorAll('.set-focus-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            activePhotoId = btn.dataset.photoId;
+            focalX = parseFloat(btn.dataset.focalX) || 50;
+            focalY = parseFloat(btn.dataset.focalY) || 50;
+            img.src = btn.dataset.full;
+            placeMarker();
+            picker.classList.add('is-open');
+        });
+    });
+
+    frame.addEventListener('click', setFocalFromEvent);
+    closeBtn.addEventListener('click', closePicker);
+
+    picker.addEventListener('click', function (e) {
+        if (e.target === picker) {
+            closePicker();
+        }
+    });
+
+    saveBtn.addEventListener('click', function () {
+        if (!activePhotoId) {
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        fetch('/api/set-photo-focus.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                photo_id: activePhotoId,
+                focal_x: focalX,
+                focal_y: focalY,
+                csrf_token: csrfToken,
+            }),
+        })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    window.location.reload();
+                    return;
+                }
+
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            })
+            .catch(function () {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            });
+    });
+})();

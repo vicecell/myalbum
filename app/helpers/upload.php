@@ -155,24 +155,6 @@ function fetch_remote_image_to_temp(string $url): array
         throw new RuntimeException('Only http:// or https:// image URLs are allowed.');
     }
 
-    // Block SSRF: refuse to let the server fetch anything on a private,
-    // loopback, link-local, or otherwise reserved network range.
-    $ips = @gethostbynamel($host);
-
-    if ($host === 'localhost' || $ips === false || empty($ips)) {
-        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : [];
-    }
-
-    if (empty($ips)) {
-        throw new RuntimeException('Could not resolve image URL host.');
-    }
-
-    foreach ($ips as $ip) {
-        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            throw new RuntimeException('That image URL points to a disallowed network address.');
-        }
-    }
-
     $maxBytes = MAX_IMAGE_SIZE_MB * 1024 * 1024;
     $tmpPath = tempnam(sys_get_temp_dir(), 'remote_img_');
     $fp = fopen($tmpPath, 'wb');
@@ -183,6 +165,7 @@ function fetch_remote_image_to_temp(string $url): array
         CURLOPT_FILE => $fp,
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+        CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_TIMEOUT => 20,
         CURLOPT_MAXFILESIZE_LARGE => $maxBytes,
         CURLOPT_USERAGENT => 'TalentDatabaseBot/1.0',
@@ -191,12 +174,24 @@ function fetch_remote_image_to_temp(string $url): array
     $ok = curl_exec($ch);
     $curlError = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $connectedIp = curl_getinfo($ch, CURLINFO_PRIMARY_IP);
     curl_close($ch);
     fclose($fp);
 
     if (!$ok || $httpCode < 200 || $httpCode >= 300) {
         @unlink($tmpPath);
         throw new RuntimeException('Failed to download image URL: ' . ($curlError ?: "HTTP {$httpCode}"));
+    }
+
+    // Block SSRF: reject if curl actually connected to a private, loopback,
+    // link-local, or otherwise reserved network address. Checked post-connect
+    // (via curl's own resolution, which respects CURLOPT_CONNECTTIMEOUT) rather
+    // than with a separate gethostbynamel() pre-check, which has no timeout of
+    // its own and can hang the whole request indefinitely on a slow/broken
+    // resolver.
+    if (!$connectedIp || !filter_var($connectedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+        @unlink($tmpPath);
+        throw new RuntimeException('That image URL points to a disallowed network address.');
     }
 
     if (filesize($tmpPath) > $maxBytes) {
