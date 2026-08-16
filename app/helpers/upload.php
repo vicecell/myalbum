@@ -79,6 +79,21 @@ function supabase_render_url(string $objectPath, int $width): string
         . '?width=' . $width . '&quality=70';
 }
 
+function uploadCroppedThumb(string $tmpFilePath): string
+{
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $tmpFilePath);
+    finfo_close($finfo);
+
+    $extensionMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $extension = $extensionMap[$mime] ?? 'jpg';
+    $objectPath = 'talents/crops/' . date('Y/m') . '/' . bin2hex(random_bytes(12)) . '.' . $extension;
+
+    upload_raw_to_supabase($tmpFilePath, $objectPath, $mime);
+
+    return SUPABASE_URL . '/storage/v1/object/public/' . SUPABASE_BUCKET . '/' . $objectPath;
+}
+
 function create_watermarked_copy(string $sourcePath, string $mime): ?string
 {
     $text = trim((string) getenv_value('WATERMARK_TEXT', 'Dola AI'));

@@ -33,6 +33,8 @@ include __DIR__ . '/../layout/header.php';
                     <div class="photo-item-actions">
                         <?php if (!$photo['is_primary']): ?>
                             <button type="button" class="btn-link set-primary-btn" data-photo-id="<?= (int) $photo['id'] ?>">Set primary</button>
+                        <?php else: ?>
+                            <button type="button" class="btn-link crop-btn" data-photo-id="<?= (int) $photo['id'] ?>" data-crop-source="<?= e($photo['imgbb_id'] ? supabase_render_url($photo['imgbb_id'], 1200) : $photo['image_url']) ?>">Crop</button>
                         <?php endif; ?>
                         <button type="button" class="btn-link btn-link-danger delete-photo-btn" data-photo-id="<?= (int) $photo['id'] ?>">Delete</button>
                     </div>
@@ -78,6 +80,19 @@ include __DIR__ . '/../layout/header.php';
     <button type="button" class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Previous photo">&#8249;</button>
     <img src="" alt="" class="lightbox-img" id="lightboxImg">
     <button type="button" class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Next photo">&#8250;</button>
+</div>
+
+<div class="lightbox crop-overlay" id="cropModal">
+    <button type="button" class="lightbox-close" id="cropClose" aria-label="Close">&times;</button>
+    <div class="crop-frame" id="cropFrame">
+        <img src="" alt="" class="crop-img" id="cropImg" crossorigin="anonymous">
+        <div class="crop-box" id="cropBox">
+            <div class="crop-box-handle" id="cropBoxHandle"></div>
+        </div>
+    </div>
+    <p class="crop-hint">Drag to move, drag corner to resize</p>
+    <button type="button" class="btn btn-primary" id="cropSave">Save crop</button>
+    <p id="cropStatus" class="upload-status"></p>
 </div>
 
 <?php include __DIR__ . '/../layout/footer.php'; ?>

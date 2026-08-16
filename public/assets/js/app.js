@@ -162,3 +162,172 @@
         }
     });
 })();
+
+(function () {
+    var modal = document.getElementById('cropModal');
+
+    if (!modal) {
+        return;
+    }
+
+    var frame = document.getElementById('cropFrame');
+    var img = document.getElementById('cropImg');
+    var box = document.getElementById('cropBox');
+    var handle = document.getElementById('cropBoxHandle');
+    var closeBtn = document.getElementById('cropClose');
+    var saveBtn = document.getElementById('cropSave');
+    var status = document.getElementById('cropStatus');
+    var csrfInput = document.querySelector('#photoUploadForm input[name="csrf_token"]');
+    var csrfToken = csrfInput ? csrfInput.value : '';
+
+    var activePhotoId = null;
+    var boxRect = { x: 0, y: 0, size: 0 };
+    var drag = null;
+    var MIN_BOX = 40;
+
+    function clampBox() {
+        var frameW = frame.clientWidth;
+        var frameH = frame.clientHeight;
+        boxRect.size = Math.max(MIN_BOX, Math.min(boxRect.size, Math.min(frameW, frameH)));
+        boxRect.x = Math.max(0, Math.min(boxRect.x, frameW - boxRect.size));
+        boxRect.y = Math.max(0, Math.min(boxRect.y, frameH - boxRect.size));
+    }
+
+    function renderBox() {
+        box.style.left = boxRect.x + 'px';
+        box.style.top = boxRect.y + 'px';
+        box.style.width = boxRect.size + 'px';
+        box.style.height = boxRect.size + 'px';
+    }
+
+    function initBox() {
+        var frameW = frame.clientWidth;
+        var frameH = frame.clientHeight;
+        boxRect.size = Math.min(frameW, frameH) * 0.7;
+        boxRect.x = (frameW - boxRect.size) / 2;
+        boxRect.y = (frameH - boxRect.size) / 2;
+        renderBox();
+    }
+
+    function pointFromEvent(e) {
+        return { x: e.clientX, y: e.clientY };
+    }
+
+    box.addEventListener('pointerdown', function (e) {
+        if (e.target === handle) {
+            return;
+        }
+        drag = { mode: 'move', start: pointFromEvent(e), origin: { x: boxRect.x, y: boxRect.y } };
+        box.setPointerCapture(e.pointerId);
+    });
+
+    handle.addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+        drag = { mode: 'resize', start: pointFromEvent(e), origin: { size: boxRect.size } };
+        handle.setPointerCapture(e.pointerId);
+    });
+
+    frame.addEventListener('pointermove', function (e) {
+        if (!drag) {
+            return;
+        }
+
+        var point = pointFromEvent(e);
+        var dx = point.x - drag.start.x;
+        var dy = point.y - drag.start.y;
+
+        if (drag.mode === 'move') {
+            boxRect.x = drag.origin.x + dx;
+            boxRect.y = drag.origin.y + dy;
+        } else {
+            boxRect.size = drag.origin.size + Math.max(dx, dy);
+        }
+
+        clampBox();
+        renderBox();
+    });
+
+    document.addEventListener('pointerup', function () {
+        drag = null;
+    });
+
+    document.querySelectorAll('.crop-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            activePhotoId = btn.dataset.photoId;
+            status.textContent = '';
+            img.src = btn.dataset.cropSource;
+            modal.classList.add('is-open');
+
+            img.onload = function () {
+                initBox();
+            };
+        });
+    });
+
+    closeBtn.addEventListener('click', function () {
+        modal.classList.remove('is-open');
+        img.src = '';
+        activePhotoId = null;
+    });
+
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+            closeBtn.click();
+        }
+    });
+
+    saveBtn.addEventListener('click', function () {
+        if (!activePhotoId || !img.naturalWidth) {
+            return;
+        }
+
+        var scale = img.naturalWidth / img.getBoundingClientRect().width;
+
+        var sx = boxRect.x * scale;
+        var sy = boxRect.y * scale;
+        var ssize = boxRect.size * scale;
+
+        var outputSize = Math.min(800, Math.round(ssize));
+        var canvas = document.createElement('canvas');
+        canvas.width = outputSize;
+        canvas.height = outputSize;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, ssize, ssize, 0, 0, outputSize, outputSize);
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        status.textContent = '';
+
+        canvas.toBlob(function (blob) {
+            if (!blob) {
+                status.textContent = 'Could not process crop.';
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save crop';
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('photo_id', activePhotoId);
+            formData.append('csrf_token', csrfToken);
+            formData.append('cropped_image', blob, 'crop.jpg');
+
+            fetch('/api/crop-photo.php', { method: 'POST', body: formData })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        window.location.reload();
+                        return;
+                    }
+
+                    status.textContent = data.message || 'Crop failed.';
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save crop';
+                })
+                .catch(function () {
+                    status.textContent = 'Crop failed.';
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save crop';
+                });
+        }, 'image/jpeg', 0.9);
+    });
+})();

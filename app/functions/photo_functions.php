@@ -53,6 +53,14 @@ function delete_talent_photo_record(int $photoId): void
     ]);
 }
 
+function update_photo_thumb(int $photoId, string $thumbUrl): void
+{
+    supabase_rest('PATCH', 'talent_photos', ['id' => 'eq.' . $photoId], [
+        'image_thumb_url' => $thumbUrl,
+        'image_medium_url' => $thumbUrl,
+    ]);
+}
+
 function set_primary_photo(int $talentId, int $photoId): void
 {
     // Runs as a single Postgres transaction inside the DB function itself (see
