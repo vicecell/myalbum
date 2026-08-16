@@ -196,6 +196,18 @@ body {
     resize: vertical;
 }
 
+.link-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.link-row input {
+    min-width: 0;
+    flex: 1;
+}
+
 .login-card {
     max-width: 360px;
     margin: 15vh auto 0;

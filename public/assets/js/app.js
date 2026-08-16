@@ -13,6 +13,34 @@
 })();
 
 (function () {
+    var container = document.getElementById('linksContainer');
+    var addBtn = document.getElementById('addLinkBtn');
+
+    if (!container || !addBtn) {
+        return;
+    }
+
+    function attachRemoveHandler(row) {
+        row.querySelector('.remove-link-btn').addEventListener('click', function () {
+            row.remove();
+        });
+    }
+
+    container.querySelectorAll('.link-row').forEach(attachRemoveHandler);
+
+    addBtn.addEventListener('click', function () {
+        var row = document.createElement('div');
+        row.className = 'link-row';
+        row.innerHTML =
+            '<input type="text" name="links_label[]" placeholder="Label (e.g. Instagram)" maxlength="100">' +
+            '<input type="url" name="links_url[]" placeholder="https://...">' +
+            '<button type="button" class="btn-link btn-link-danger remove-link-btn">&times;</button>';
+        container.appendChild(row);
+        attachRemoveHandler(row);
+    });
+})();
+
+(function () {
     var uploadForm = document.getElementById('photoUploadForm');
 
     if (uploadForm) {

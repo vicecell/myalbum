@@ -65,6 +65,14 @@ include __DIR__ . '/../layout/header.php';
         <p><a href="<?= e($talent['video_url']) ?>" class="btn btn-primary" target="_blank" rel="noopener noreferrer">Watch Video</a></p>
     <?php endif; ?>
 
+    <?php if (!empty($talent['links'])): ?>
+        <div class="chip-row">
+            <?php foreach ($talent['links'] as $link): ?>
+                <a href="<?= e($link['url']) ?>" class="chip" target="_blank" rel="noopener noreferrer"><?= e($link['label']) ?></a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
     <div class="page-toolbar">
         <a href="/admin/talents/edit.php?id=<?= (int) $talent['id'] ?>" class="btn btn-primary">Edit</a>
         <form method="post" action="/admin/talents/delete.php" onsubmit="return confirm('Delete this talent?');">

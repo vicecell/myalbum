@@ -38,6 +38,8 @@ CREATE TABLE talents (
     description TEXT NOT NULL,
     video_url VARCHAR(500) NULL,
     rate VARCHAR(100) NULL,
+    -- Array of {"label": "...", "url": "..."} objects, e.g. Instagram/portfolio links.
+    links JSONB NOT NULL DEFAULT '[]'::jsonb,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NULL DEFAULT NULL,

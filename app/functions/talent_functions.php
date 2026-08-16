@@ -98,6 +98,7 @@ function create_talent(array $data): int
         'description' => $data['description'],
         'video_url' => $data['video_url'],
         'rate' => $data['rate'],
+        'links' => $data['links'] ?? [],
         'status' => $data['status'],
     ]);
 
@@ -112,6 +113,7 @@ function update_talent(int $id, array $data): void
         'description' => $data['description'],
         'video_url' => $data['video_url'],
         'rate' => $data['rate'],
+        'links' => $data['links'] ?? [],
         'status' => $data['status'],
     ]);
 }
