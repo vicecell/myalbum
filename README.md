@@ -6,7 +6,7 @@ Mobile-first PHP-native admin app for managing a private talent database. See `C
 
 All 6 MVP milestones complete: project foundation, authentication (session-based, CSRF, password hashing), city CRUD, talent CRUD (search + city filter + rate), multi-photo upload via Supabase Storage (primary photo, delete), dashboard summary + settings page. Deletes are soft (`deleted_at`), not physical row removal.
 
-Photo hosting was switched from ImgBB to Supabase Storage, and the database was switched from local MySQL to Supabase Postgres (both deviate from the original blueprint spec, done at user request). Needs a public storage bucket and a Postgres connection — see Setup below.
+Photo hosting was switched from ImgBB to Supabase Storage, the database was switched from local MySQL to Supabase Postgres, and — after production (CentOS 7) turned out to have a system `libpq` too old for Supabase's required SCRAM auth, with no upgrade path left for that OS — all database access was rewritten to go through Supabase's PostgREST HTTP API instead of a native Postgres connection (`app/config/database.php`'s `supabase_rest()`/`supabase_rest_count()`). All of this deviates from the original blueprint spec, done at user request. Needs a public storage bucket — see Setup below. No native Postgres client (`pdo_pgsql`, `psql`) is needed anywhere anymore, only `curl`.
 
 Seed the admin account once with:
 ```bash
@@ -17,14 +17,13 @@ Then import `database/seed.sql` for the default city list (optional).
 ## Requirements
 
 - PHP 8+
-- `pdo_pgsql`, `gd` (freetype + webp), `curl` extensions
+- `curl`, `gd` (freetype + webp) extensions
 - A Supabase project (Postgres database + Storage)
 
 ## Setup
 
 1. Copy `.env.example` to `.env` and fill in:
-   - `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASS` — Supabase Postgres **connection pooler** credentials (Project → Connect → Direct connection tab has a pooler toggle; direct/IPv6-only connections often aren't reachable from IPv4-only networks, so the pooler — `aws-0-<region>.pooler.supabase.com:6543`, user `postgres.<project-ref>` — is the reliable choice).
-   - `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` — Storage, from Project Settings → API (`service_role` key — server-side only, never expose to frontend).
+   - `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` — from Project Settings → API (`service_role` key — server-side only, never expose to frontend; used for both Storage uploads and the PostgREST Data API).
    - `WATERMARK_TEXT` — text burned into the bottom-right corner of every uploaded photo (GD + bundled font at `app/assets/fonts/watermark.ttf`).
 
    The storage bucket must exist and be public; create it once with:
@@ -35,7 +34,7 @@ Then import `database/seed.sql` for the default city list (optional).
      -H "Content-Type: application/json" \
      -d '{"id":"talent-photos","name":"talent-photos","public":true}'
    ```
-2. Apply the schema (`database/schema.sql` is PostgreSQL DDL) against the Supabase database — e.g. via the SQL Editor in the Supabase dashboard, or `psql "$DATABASE_URL" -f database/schema.sql`.
+2. Apply the schema (`database/schema.sql` is PostgreSQL DDL, includes the `set_primary_photo` RPC function) against the Supabase database via the SQL Editor in the Supabase dashboard (no local Postgres client needed).
 3. Run the app with PHP's built-in server (from project root), using `router.php` so `/admin/*` and `/api/*` (which live outside `public/`, per the folder structure) resolve correctly:
    ```bash
    php -S localhost:8000 -t public router.php

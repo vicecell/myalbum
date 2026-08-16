@@ -73,3 +73,13 @@ CREATE TABLE talent_photos (
 
 CREATE INDEX idx_talent_photos_talent_id ON talent_photos(talent_id);
 CREATE INDEX idx_talent_photos_is_primary ON talent_photos(is_primary);
+
+-- Called via PostgREST RPC (POST /rest/v1/rpc/set_primary_photo) from PHP so the
+-- two-step unset/set stays a single atomic transaction without needing a native
+-- Postgres client connection from the app server.
+CREATE OR REPLACE FUNCTION set_primary_photo(p_talent_id INTEGER, p_photo_id INTEGER) RETURNS void AS $$
+BEGIN
+    UPDATE talent_photos SET is_primary = 0 WHERE talent_id = p_talent_id AND deleted_at IS NULL;
+    UPDATE talent_photos SET is_primary = 1 WHERE id = p_photo_id AND talent_id = p_talent_id AND deleted_at IS NULL;
+END;
+$$ LANGUAGE plpgsql;

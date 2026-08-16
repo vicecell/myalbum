@@ -27,6 +27,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+require_once __DIR__ . '/config/supabase.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/helpers/csrf.php';
 require_once __DIR__ . '/helpers/flash.php';
@@ -37,5 +38,4 @@ require_once __DIR__ . '/functions/city_functions.php';
 require_once __DIR__ . '/functions/talent_functions.php';
 require_once __DIR__ . '/functions/photo_functions.php';
 require_once __DIR__ . '/config/upload.php';
-require_once __DIR__ . '/config/supabase.php';
 require_once __DIR__ . '/helpers/upload.php';

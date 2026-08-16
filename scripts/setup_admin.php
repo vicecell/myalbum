@@ -3,9 +3,11 @@
 // Usage: php scripts/setup_admin.php <username> <password>
 
 require_once __DIR__ . '/../app/config/env.php';
-require_once __DIR__ . '/../app/config/database.php';
 
 load_env(dirname(__DIR__) . '/.env');
+
+require_once __DIR__ . '/../app/config/supabase.php';
+require_once __DIR__ . '/../app/config/database.php';
 
 if (php_sapi_name() !== 'cli') {
     http_response_code(403);
@@ -22,10 +24,9 @@ if (!$username || !$password) {
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-$stmt = db()->prepare(
-    'INSERT INTO admins (username, password_hash) VALUES (:username, :hash)
-     ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash'
-);
-$stmt->execute(['username' => $username, 'hash' => $hash]);
+supabase_rest('POST', 'admins', ['on_conflict' => 'username'], [
+    'username' => $username,
+    'password_hash' => $hash,
+]);
 
 echo "Admin '{$username}' saved.\n";
