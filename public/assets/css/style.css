@@ -400,8 +400,8 @@ body {
 }
 
 .talent-thumb {
-    width: 76px;
-    height: 76px;
+    width: 120px;
+    height: 120px;
     border-radius: 18px;
     object-fit: contain;
     background: var(--color-primary-light);

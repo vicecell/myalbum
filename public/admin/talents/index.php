@@ -49,7 +49,9 @@ include __DIR__ . '/../layout/header.php';
                         </div>
                     </a>
                     <div class="list-item-actions">
-                        <a href="/admin/talents/edit.php?id=<?= (int) $talent['id'] ?>" class="btn-link">Edit</a>
+                        <a href="/admin/talents/edit.php?id=<?= (int) $talent['id'] ?>" class="btn-link" aria-label="Edit">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        </a>
                     </div>
                 </li>
             <?php endforeach; ?>
