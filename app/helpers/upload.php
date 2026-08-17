@@ -35,7 +35,7 @@ function uploadImageToSupabase(string $tmpFilePath, string $originalName): array
 
     return [
         'url' => $publicFullUrl,
-        'thumb_url' => supabase_render_url($objectPath, 160),
+        'thumb_url' => supabase_render_url($objectPath, 100),
         'medium_url' => supabase_render_url($objectPath, 640),
         'path' => $objectPath,
     ];

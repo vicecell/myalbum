@@ -14,19 +14,10 @@ $activeNav = 'talents';
 
 include __DIR__ . '/../layout/header.php';
 ?>
-<main class="page-content">
+<main class="page-content page-content-fixed-toolbar">
     <?php if ($flash): ?>
         <div class="alert-<?= e($flash['type']) ?>"><?= e($flash['message']) ?></div>
     <?php endif; ?>
-
-    <div class="page-toolbar">
-        <a href="/admin/talents/create.php" class="btn btn-primary">+ Add Talent</a>
-    </div>
-
-    <form method="get" action="/admin/talents/index.php" class="form-group">
-        <input type="search" name="q" placeholder="Search talent..." value="<?= e($search) ?>">
-        <?php if ($cityId): ?><input type="hidden" name="city_id" value="<?= (int) $cityId ?>"><?php endif; ?>
-    </form>
 
     <div class="chip-row">
         <a href="/admin/talents/index.php<?= $search ? '?q=' . urlencode($search) : '' ?>" class="chip<?= !$cityId ? ' is-active' : '' ?>">All</a>
@@ -58,4 +49,13 @@ include __DIR__ . '/../layout/header.php';
         </ul>
     <?php endif; ?>
 </main>
+
+<div class="talent-fixed-toolbar">
+    <a href="/admin/talents/create.php" class="btn btn-primary btn-block">+ Add Talent</a>
+    <form method="get" action="/admin/talents/index.php" class="form-group">
+        <input type="search" name="q" placeholder="Search talent..." value="<?= e($search) ?>">
+        <?php if ($cityId): ?><input type="hidden" name="city_id" value="<?= (int) $cityId ?>"><?php endif; ?>
+    </form>
+</div>
+
 <?php include __DIR__ . '/../layout/footer.php'; ?>
