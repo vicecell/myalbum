@@ -40,10 +40,10 @@ if ($validationError) {
 }
 
 try {
-    $thumbUrl = uploadCroppedThumb($_FILES['cropped_image']['tmp_name']);
-    update_photo_thumb($photoId, $thumbUrl);
+    $objectPath = uploadCroppedThumb($_FILES['cropped_image']['tmp_name']);
+    update_photo_source($photoId, $objectPath);
 
-    echo json_encode(['success' => true, 'message' => 'Crop saved.', 'thumb_url' => $thumbUrl]);
+    echo json_encode(['success' => true, 'message' => 'Crop saved.', 'thumb_url' => supabase_render_url($objectPath, 100)]);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Crop upload failed.']);

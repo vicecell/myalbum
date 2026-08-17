@@ -35,8 +35,6 @@ function uploadImageToSupabase(string $tmpFilePath, string $originalName): array
 
     return [
         'url' => $publicFullUrl,
-        'thumb_url' => supabase_render_url($objectPath, 100),
-        'medium_url' => supabase_render_url($objectPath, 640),
         'path' => $objectPath,
     ];
 }
@@ -75,8 +73,11 @@ function upload_raw_to_supabase(string $filePath, string $objectPath, string $mi
 
 function supabase_render_url(string $objectPath, int $width): string
 {
+    // resize=contain is required or Supabase keeps the original height and only
+    // shrinks width, squishing/distorting the image instead of scaling it
+    // proportionally.
     return SUPABASE_URL . '/storage/v1/render/image/public/' . SUPABASE_BUCKET . '/' . $objectPath
-        . '?width=' . $width . '&quality=70';
+        . '?width=' . $width . '&quality=70&resize=contain';
 }
 
 function uploadCroppedThumb(string $tmpFilePath): string
@@ -91,7 +92,9 @@ function uploadCroppedThumb(string $tmpFilePath): string
 
     upload_raw_to_supabase($tmpFilePath, $objectPath, $mime);
 
-    return SUPABASE_URL . '/storage/v1/object/public/' . SUPABASE_BUCKET . '/' . $objectPath;
+    // Returns the object path (not a public URL) — becomes the photo's new
+    // imgbb_id, so thumb/medium render URLs generated from it stay in sync.
+    return $objectPath;
 }
 
 function create_watermarked_copy(string $sourcePath, string $mime): ?string

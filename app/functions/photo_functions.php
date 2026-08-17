@@ -35,8 +35,6 @@ function insert_talent_photo(int $talentId, array $uploadData, ?string $original
         'talent_id' => $talentId,
         'image_url' => $uploadData['url'] ?? '',
         'image_display_url' => $uploadData['url'] ?? null,
-        'image_thumb_url' => $uploadData['thumb_url'] ?? $uploadData['url'] ?? null,
-        'image_medium_url' => $uploadData['medium_url'] ?? $uploadData['url'] ?? null,
         'image_delete_url' => null,
         'imgbb_id' => $uploadData['path'] ?? null,
         'original_filename' => $originalName,
@@ -53,11 +51,13 @@ function delete_talent_photo_record(int $photoId): void
     ]);
 }
 
-function update_photo_thumb(int $photoId, string $thumbUrl): void
+function update_photo_source(int $photoId, string $objectPath): void
 {
+    // Cropping replaces the "clean" render source (imgbb_id) itself, so every
+    // thumb/medium URL generated from it afterwards reflects the crop —
+    // nothing gets cached/stale.
     supabase_rest('PATCH', 'talent_photos', ['id' => 'eq.' . $photoId], [
-        'image_thumb_url' => $thumbUrl,
-        'image_medium_url' => $thumbUrl,
+        'imgbb_id' => $objectPath,
     ]);
 }
 

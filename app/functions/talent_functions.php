@@ -13,7 +13,7 @@ function count_active_talents(): int
 function get_talents(?string $search = null, ?int $cityId = null): array
 {
     $query = [
-        'select' => '*,cities(city_name),talent_photos(image_thumb_url)',
+        'select' => '*,cities(city_name),talent_photos(imgbb_id)',
         'deleted_at' => 'is.null',
         'talent_photos.is_primary' => 'eq.1',
         'talent_photos.deleted_at' => 'is.null',
@@ -27,7 +27,8 @@ function get_talents(?string $search = null, ?int $cityId = null): array
 
     foreach ($rows as &$row) {
         $row['city_name'] = $row['cities']['city_name'] ?? null;
-        $row['primary_photo'] = $row['talent_photos'][0]['image_thumb_url'] ?? null;
+        $photoPath = $row['talent_photos'][0]['imgbb_id'] ?? null;
+        $row['primary_photo'] = $photoPath ? supabase_render_url($photoPath, 100) : null;
         unset($row['cities'], $row['talent_photos']);
     }
     unset($row);

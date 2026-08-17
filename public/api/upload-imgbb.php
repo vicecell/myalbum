@@ -63,7 +63,7 @@ for ($i = 0; $i < $fileCount; $i++) {
         $uploaded[] = [
             'id' => $photoId,
             'image_url' => $uploadData['url'] ?? '',
-            'thumb_url' => $uploadData['thumb_url'] ?? $uploadData['url'] ?? '',
+            'thumb_url' => isset($uploadData['path']) ? supabase_render_url($uploadData['path'], 100) : ($uploadData['url'] ?? ''),
             'is_primary' => $isPrimary ? 1 : 0,
         ];
     } catch (Throwable $e) {
@@ -81,7 +81,7 @@ if ($photoUrl !== '') {
         $uploaded[] = [
             'id' => $photoId,
             'image_url' => $uploadData['url'] ?? '',
-            'thumb_url' => $uploadData['thumb_url'] ?? $uploadData['url'] ?? '',
+            'thumb_url' => isset($uploadData['path']) ? supabase_render_url($uploadData['path'], 100) : ($uploadData['url'] ?? ''),
             'is_primary' => $isPrimary ? 1 : 0,
         ];
     } catch (Throwable $e) {
