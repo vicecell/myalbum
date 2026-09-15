@@ -33,7 +33,7 @@ include __DIR__ . '/../layout/header.php';
             <?php foreach ($talents as $talent): ?>
                 <li class="list-item talent-card">
                     <a href="/admin/talents/detail.php?id=<?= (int) $talent['id'] ?>" class="talent-card-link">
-                        <img src="<?= e($talent['primary_photo'] ?: '/assets/img/placeholder.svg') ?>" alt="" class="talent-thumb">
+                        <img src="<?= e($talent['primary_photo'] ?: '/assets/img/placeholder.svg') ?>" data-full="<?= e($talent['primary_photo_full']) ?>" alt="" class="talent-thumb">
                         <div class="talent-meta">
                             <span class="list-item-title"><?= e($talent['name']) ?></span>
                             <span class="talent-city"><?= e($talent['city_name']) ?><?php if (!empty($talent['rate'])): ?> - <span class="talent-rate"><?= e($talent['rate']) ?></span><?php endif; ?></span>
@@ -56,6 +56,11 @@ include __DIR__ . '/../layout/header.php';
         <input type="search" name="q" placeholder="Search talent..." value="<?= e($search) ?>">
         <?php if ($cityId): ?><input type="hidden" name="city_id" value="<?= (int) $cityId ?>"><?php endif; ?>
     </form>
+</div>
+
+<div class="lightbox" id="talentThumbLightbox">
+    <button type="button" class="lightbox-close" id="talentThumbLightboxClose" aria-label="Close">&times;</button>
+    <img src="" alt="" class="lightbox-img" id="talentThumbLightboxImg">
 </div>
 
 <?php include __DIR__ . '/../layout/footer.php'; ?>

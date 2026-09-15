@@ -13,6 +13,49 @@
 })();
 
 (function () {
+    var lightbox = document.getElementById('talentThumbLightbox');
+
+    if (!lightbox) {
+        return;
+    }
+
+    var lightboxImg = document.getElementById('talentThumbLightboxImg');
+    var closeBtn = document.getElementById('talentThumbLightboxClose');
+
+    function closeLightbox() {
+        lightbox.classList.remove('is-open');
+        lightboxImg.src = '';
+    }
+
+    document.querySelectorAll('.talent-thumb').forEach(function (img) {
+        if (!img.dataset.full) {
+            return;
+        }
+
+        img.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            lightboxImg.src = img.dataset.full;
+            lightbox.classList.add('is-open');
+        });
+    });
+
+    closeBtn.addEventListener('click', closeLightbox);
+
+    lightbox.addEventListener('click', function (e) {
+        if (e.target === lightbox) {
+            closeLightbox();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (lightbox.classList.contains('is-open') && e.key === 'Escape') {
+            closeLightbox();
+        }
+    });
+})();
+
+(function () {
     var container = document.getElementById('linksContainer');
     var addBtn = document.getElementById('addLinkBtn');
 

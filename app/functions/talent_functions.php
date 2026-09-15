@@ -12,7 +12,7 @@ function count_active_talents(): int
 
 function get_talents(?string $search = null, ?int $cityId = null): array
 {
-    $sql = 'SELECT t.*, c.city_name, p.image_thumb_url AS primary_photo
+    $sql = 'SELECT t.*, c.city_name, p.image_thumb_url AS primary_photo, p.image_url AS primary_photo_full
             FROM talents t
             JOIN cities c ON c.id = t.city_id
             LEFT JOIN talent_photos p ON p.talent_id = t.id AND p.is_primary = 1 AND p.deleted_at IS NULL
