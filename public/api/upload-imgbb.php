@@ -37,6 +37,7 @@ if (!$hasFiles && $photoUrl === '') {
 $uploaded = [];
 $errors = [];
 $hasExistingPrimary = talent_has_any_photo($talentId);
+$folderName = cloudinary_folder_name($talent['name']);
 $fileCount = $hasFiles ? count($_FILES['photos']['name']) : 0;
 
 for ($i = 0; $i < $fileCount; $i++) {
@@ -56,14 +57,14 @@ for ($i = 0; $i < $fileCount; $i++) {
     }
 
     try {
-        $uploadData = uploadImageToSupabase($file['tmp_name'], $file['name']);
+        $uploadData = uploadImageToCloudinary($file['tmp_name'], $file['name'], $folderName);
         $isPrimary = !$hasExistingPrimary && empty($uploaded);
         $photoId = insert_talent_photo($talentId, $uploadData, $file['name'], $isPrimary);
 
         $uploaded[] = [
             'id' => $photoId,
             'image_url' => $uploadData['url'] ?? '',
-            'thumb_url' => isset($uploadData['path']) ? supabase_render_url($uploadData['path'], 100) : ($uploadData['url'] ?? ''),
+            'thumb_url' => $uploadData['thumb_url'] ?? $uploadData['url'] ?? '',
             'is_primary' => $isPrimary ? 1 : 0,
         ];
     } catch (Throwable $e) {
@@ -74,14 +75,14 @@ for ($i = 0; $i < $fileCount; $i++) {
 if ($photoUrl !== '') {
     try {
         $downloaded = fetch_remote_image_to_temp($photoUrl);
-        $uploadData = uploadImageToSupabase($downloaded['tmp_path'], $downloaded['original_name']);
+        $uploadData = uploadImageToCloudinary($downloaded['tmp_path'], $downloaded['original_name'], $folderName);
         $isPrimary = !$hasExistingPrimary && empty($uploaded);
         $photoId = insert_talent_photo($talentId, $uploadData, $downloaded['original_name'], $isPrimary);
 
         $uploaded[] = [
             'id' => $photoId,
             'image_url' => $uploadData['url'] ?? '',
-            'thumb_url' => isset($uploadData['path']) ? supabase_render_url($uploadData['path'], 100) : ($uploadData['url'] ?? ''),
+            'thumb_url' => $uploadData['thumb_url'] ?? $uploadData['url'] ?? '',
             'is_primary' => $isPrimary ? 1 : 0,
         ];
     } catch (Throwable $e) {

@@ -39,11 +39,14 @@ if ($validationError) {
     exit;
 }
 
-try {
-    $objectPath = uploadCroppedThumb($_FILES['cropped_image']['tmp_name']);
-    update_photo_source($photoId, $objectPath);
+$talent = get_talent($photo['talent_id']);
+$folderName = cloudinary_folder_name($talent['name'] ?? 'unknown');
 
-    echo json_encode(['success' => true, 'message' => 'Crop saved.', 'thumb_url' => supabase_render_url($objectPath, 100)]);
+try {
+    $result = uploadCroppedThumb($_FILES['cropped_image']['tmp_name'], $folderName);
+    update_photo_source($photoId, $result['path'], $result['thumb_url']);
+
+    echo json_encode(['success' => true, 'message' => 'Crop saved.', 'thumb_url' => $result['thumb_url']]);
 } catch (Throwable $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'message' => 'Crop upload failed.']);

@@ -2,126 +2,113 @@
 
 function count_talents(): int
 {
-    return supabase_rest_count('talents', ['deleted_at' => 'is.null']);
+    return (int) db()->query('SELECT COUNT(*) FROM talents WHERE deleted_at IS NULL')->fetchColumn();
 }
 
 function count_active_talents(): int
 {
-    return supabase_rest_count('talents', ['status' => 'eq.active', 'deleted_at' => 'is.null']);
+    return (int) db()->query("SELECT COUNT(*) FROM talents WHERE status = 'active' AND deleted_at IS NULL")->fetchColumn();
 }
 
 function get_talents(?string $search = null, ?int $cityId = null): array
 {
-    $query = [
-        'select' => '*,cities(city_name),talent_photos(imgbb_id)',
-        'deleted_at' => 'is.null',
-        'talent_photos.is_primary' => 'eq.1',
-        'talent_photos.deleted_at' => 'is.null',
-    ];
+    $sql = 'SELECT t.*, c.city_name, p.image_thumb_url AS primary_photo
+            FROM talents t
+            JOIN cities c ON c.id = t.city_id
+            LEFT JOIN talent_photos p ON p.talent_id = t.id AND p.is_primary = 1 AND p.deleted_at IS NULL
+            WHERE t.deleted_at IS NULL';
+    $params = [];
 
     if ($cityId) {
-        $query['city_id'] = 'eq.' . $cityId;
+        $sql .= ' AND t.city_id = ?';
+        $params[] = $cityId;
     }
 
-    $rows = supabase_rest('GET', 'talents', $query);
+    if ($search !== null && $search !== '') {
+        $sql .= ' AND (t.name LIKE ? OR t.description LIKE ?)';
+        $like = '%' . $search . '%';
+        $params[] = $like;
+        $params[] = $like;
+    }
+
+    $sql .= ' ORDER BY LOWER(t.name) ASC';
+
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
 
     foreach ($rows as &$row) {
-        $row['city_name'] = $row['cities']['city_name'] ?? null;
-        $photoPath = $row['talent_photos'][0]['imgbb_id'] ?? null;
-        $row['primary_photo'] = $photoPath ? supabase_render_url($photoPath, 100) : null;
-        unset($row['cities'], $row['talent_photos']);
+        $row['links'] = json_decode($row['links'] ?? '[]', true) ?: [];
     }
     unset($row);
-
-    // Free-text search and case-insensitive sort done client-side rather than via
-    // PostgREST's or=()/ilike filter DSL — avoids escaping commas/parens/periods
-    // in search terms, and ORDER BY LOWER(...) isn't expressible via plain
-    // order=. No pagination anywhere in the app, so fetch-all is cheap at this
-    // scale (revisit if talent count grows into the hundreds).
-    if ($search !== null && $search !== '') {
-        $rows = array_values(array_filter($rows, function ($row) use ($search) {
-            return stripos($row['name'], $search) !== false || stripos($row['description'], $search) !== false;
-        }));
-    }
-
-    usort($rows, fn ($a, $b) => strtolower($a['name']) <=> strtolower($b['name']));
 
     return $rows;
 }
 
 function get_talent(int $id): ?array
 {
-    $rows = supabase_rest('GET', 'talents', [
-        'select' => '*,cities(city_name)',
-        'id' => 'eq.' . $id,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ]);
+    $stmt = db()->prepare('SELECT t.*, c.city_name FROM talents t JOIN cities c ON c.id = t.city_id WHERE t.id = ? AND t.deleted_at IS NULL LIMIT 1');
+    $stmt->execute([$id]);
+    $talent = $stmt->fetch();
 
-    if (empty($rows)) {
+    if (!$talent) {
         return null;
     }
 
-    $talent = $rows[0];
-    $talent['city_name'] = $talent['cities']['city_name'] ?? null;
-    unset($talent['cities']);
+    $talent['links'] = json_decode($talent['links'] ?? '[]', true) ?: [];
 
     return $talent;
 }
 
 function get_talent_photos(int $id): array
 {
-    return supabase_rest('GET', 'talent_photos', [
-        'select' => '*',
-        'talent_id' => 'eq.' . $id,
-        'deleted_at' => 'is.null',
-        'order' => 'is_primary.desc,sort_order.asc,id.asc',
-    ]);
+    $stmt = db()->prepare('SELECT * FROM talent_photos WHERE talent_id = ? AND deleted_at IS NULL ORDER BY is_primary DESC, sort_order ASC, id ASC');
+    $stmt->execute([$id]);
+
+    return $stmt->fetchAll();
 }
 
 function city_exists(int $id): bool
 {
-    $rows = supabase_rest('GET', 'cities', [
-        'select' => 'id',
-        'id' => 'eq.' . $id,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ]);
+    $stmt = db()->prepare('SELECT id FROM cities WHERE id = ? AND deleted_at IS NULL LIMIT 1');
+    $stmt->execute([$id]);
 
-    return !empty($rows);
+    return (bool) $stmt->fetch();
 }
 
 function create_talent(array $data): int
 {
-    $rows = supabase_rest('POST', 'talents', [], [
-        'city_id' => $data['city_id'],
-        'name' => $data['name'],
-        'description' => $data['description'],
-        'video_url' => $data['video_url'],
-        'rate' => $data['rate'],
-        'links' => $data['links'] ?? [],
-        'status' => $data['status'],
+    $stmt = db()->prepare('INSERT INTO talents (city_id, name, description, video_url, rate, links, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    $stmt->execute([
+        $data['city_id'],
+        $data['name'],
+        $data['description'],
+        $data['video_url'],
+        $data['rate'],
+        json_encode($data['links'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        $data['status'],
     ]);
 
-    return (int) $rows[0]['id'];
+    return (int) db()->lastInsertId();
 }
 
 function update_talent(int $id, array $data): void
 {
-    supabase_rest('PATCH', 'talents', ['id' => 'eq.' . $id], [
-        'city_id' => $data['city_id'],
-        'name' => $data['name'],
-        'description' => $data['description'],
-        'video_url' => $data['video_url'],
-        'rate' => $data['rate'],
-        'links' => $data['links'] ?? [],
-        'status' => $data['status'],
+    $stmt = db()->prepare('UPDATE talents SET city_id = ?, name = ?, description = ?, video_url = ?, rate = ?, links = ?, status = ? WHERE id = ?');
+    $stmt->execute([
+        $data['city_id'],
+        $data['name'],
+        $data['description'],
+        $data['video_url'],
+        $data['rate'],
+        json_encode($data['links'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        $data['status'],
+        $id,
     ]);
 }
 
 function delete_talent(int $id): void
 {
-    supabase_rest('PATCH', 'talents', ['id' => 'eq.' . $id], [
-        'deleted_at' => now_ts(),
-    ]);
+    $stmt = db()->prepare('UPDATE talents SET deleted_at = ? WHERE id = ?');
+    $stmt->execute([now_ts(), $id]);
 }

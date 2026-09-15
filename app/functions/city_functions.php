@@ -2,92 +2,67 @@
 
 function get_all_cities(): array
 {
-    $rows = supabase_rest('GET', 'cities', [
-        'select' => '*',
-        'deleted_at' => 'is.null',
-    ]);
+    $stmt = db()->query('SELECT * FROM cities WHERE deleted_at IS NULL ORDER BY city_name ASC');
 
-    usort($rows, fn ($a, $b) => strtolower($a['city_name']) <=> strtolower($b['city_name']));
-
-    return $rows;
+    return $stmt->fetchAll();
 }
 
 function count_cities(): int
 {
-    return supabase_rest_count('cities', ['deleted_at' => 'is.null']);
+    return (int) db()->query('SELECT COUNT(*) FROM cities WHERE deleted_at IS NULL')->fetchColumn();
 }
 
 function get_active_cities(): array
 {
-    $rows = supabase_rest('GET', 'cities', [
-        'select' => '*',
-        'status' => 'eq.active',
-        'deleted_at' => 'is.null',
-    ]);
+    $stmt = db()->query("SELECT * FROM cities WHERE status = 'active' AND deleted_at IS NULL ORDER BY city_name ASC");
 
-    usort($rows, fn ($a, $b) => strtolower($a['city_name']) <=> strtolower($b['city_name']));
-
-    return $rows;
+    return $stmt->fetchAll();
 }
 
 function get_city(int $id): ?array
 {
-    $rows = supabase_rest('GET', 'cities', [
-        'select' => '*',
-        'id' => 'eq.' . $id,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ]);
+    $stmt = db()->prepare('SELECT * FROM cities WHERE id = ? AND deleted_at IS NULL LIMIT 1');
+    $stmt->execute([$id]);
 
-    return $rows[0] ?? null;
+    return $stmt->fetch() ?: null;
 }
 
 function city_name_exists(string $name, ?int $excludeId = null): bool
 {
-    // Plain eq. filter — PostgREST takes the rest-of-value literally here (no
-    // escaping needed); reserved chars only matter inside in.()/or=() lists.
-    $query = [
-        'select' => 'id',
-        'city_name' => 'eq.' . $name,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ];
+    $sql = 'SELECT id FROM cities WHERE city_name = ? AND deleted_at IS NULL';
+    $params = [$name];
 
     if ($excludeId !== null) {
-        $query['id'] = 'neq.' . $excludeId;
+        $sql .= ' AND id != ?';
+        $params[] = $excludeId;
     }
 
-    return !empty(supabase_rest('GET', 'cities', $query));
+    $stmt = db()->prepare($sql . ' LIMIT 1');
+    $stmt->execute($params);
+
+    return (bool) $stmt->fetch();
 }
 
 function create_city(string $name, string $status): int
 {
-    $rows = supabase_rest('POST', 'cities', [], [
-        'city_name' => $name,
-        'status' => $status,
-    ]);
+    $stmt = db()->prepare('INSERT INTO cities (city_name, status) VALUES (?, ?)');
+    $stmt->execute([$name, $status]);
 
-    return (int) $rows[0]['id'];
+    return (int) db()->lastInsertId();
 }
 
 function update_city(int $id, string $name, string $status): void
 {
-    supabase_rest('PATCH', 'cities', ['id' => 'eq.' . $id], [
-        'city_name' => $name,
-        'status' => $status,
-    ]);
+    $stmt = db()->prepare('UPDATE cities SET city_name = ?, status = ? WHERE id = ?');
+    $stmt->execute([$name, $status, $id]);
 }
 
 function city_has_talents(int $id): bool
 {
-    $rows = supabase_rest('GET', 'talents', [
-        'select' => 'id',
-        'city_id' => 'eq.' . $id,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ]);
+    $stmt = db()->prepare('SELECT id FROM talents WHERE city_id = ? AND deleted_at IS NULL LIMIT 1');
+    $stmt->execute([$id]);
 
-    return !empty($rows);
+    return (bool) $stmt->fetch();
 }
 
 function delete_city(int $id): bool
@@ -96,9 +71,8 @@ function delete_city(int $id): bool
         return false;
     }
 
-    supabase_rest('PATCH', 'cities', ['id' => 'eq.' . $id], [
-        'deleted_at' => now_ts(),
-    ]);
+    $stmt = db()->prepare('UPDATE cities SET deleted_at = ? WHERE id = ?');
+    $stmt->execute([now_ts(), $id]);
 
     return true;
 }

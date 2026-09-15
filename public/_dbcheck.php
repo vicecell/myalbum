@@ -9,8 +9,8 @@ if (APP_ENV !== 'local') {
 header('Content-Type: text/plain');
 
 try {
-    supabase_rest('GET', 'cities', ['select' => 'id', 'limit' => '1']);
+    db()->query('SELECT id FROM cities LIMIT 1');
     echo 'Database connection OK';
-} catch (RuntimeException $e) {
+} catch (Throwable $e) {
     echo 'Database connection FAILED: ' . $e->getMessage();
 }

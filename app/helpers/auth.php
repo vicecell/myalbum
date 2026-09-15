@@ -2,12 +2,9 @@
 
 function attempt_login(string $username, string $password): bool
 {
-    $rows = supabase_rest('GET', 'admins', [
-        'select' => 'id,username,password_hash',
-        'username' => 'eq.' . $username,
-        'limit' => '1',
-    ]);
-    $admin = $rows[0] ?? null;
+    $stmt = db()->prepare('SELECT id, username, password_hash FROM admins WHERE username = ? LIMIT 1');
+    $stmt->execute([$username]);
+    $admin = $stmt->fetch() ?: null;
 
     if (!$admin || !password_verify($password, $admin['password_hash'])) {
         return false;

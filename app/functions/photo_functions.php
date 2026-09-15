@@ -2,72 +2,74 @@
 
 function count_photos(): int
 {
-    return supabase_rest_count('talent_photos', ['deleted_at' => 'is.null']);
+    return (int) db()->query('SELECT COUNT(*) FROM talent_photos WHERE deleted_at IS NULL')->fetchColumn();
 }
 
 function get_talent_photo(int $photoId): ?array
 {
-    $rows = supabase_rest('GET', 'talent_photos', [
-        'select' => '*',
-        'id' => 'eq.' . $photoId,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ]);
+    $stmt = db()->prepare('SELECT * FROM talent_photos WHERE id = ? AND deleted_at IS NULL LIMIT 1');
+    $stmt->execute([$photoId]);
 
-    return $rows[0] ?? null;
+    return $stmt->fetch() ?: null;
 }
 
 function talent_has_any_photo(int $talentId): bool
 {
-    $rows = supabase_rest('GET', 'talent_photos', [
-        'select' => 'id',
-        'talent_id' => 'eq.' . $talentId,
-        'deleted_at' => 'is.null',
-        'limit' => '1',
-    ]);
+    $stmt = db()->prepare('SELECT id FROM talent_photos WHERE talent_id = ? AND deleted_at IS NULL LIMIT 1');
+    $stmt->execute([$talentId]);
 
-    return !empty($rows);
+    return (bool) $stmt->fetch();
 }
 
 function insert_talent_photo(int $talentId, array $uploadData, ?string $originalName, bool $isPrimary): int
 {
-    $rows = supabase_rest('POST', 'talent_photos', [], [
-        'talent_id' => $talentId,
-        'image_url' => $uploadData['url'] ?? '',
-        'image_display_url' => $uploadData['url'] ?? null,
-        'image_delete_url' => null,
-        'imgbb_id' => $uploadData['path'] ?? null,
-        'original_filename' => $originalName,
-        'is_primary' => $isPrimary ? 1 : 0,
+    $stmt = db()->prepare('INSERT INTO talent_photos
+        (talent_id, image_url, image_display_url, image_thumb_url, image_delete_url, imgbb_id, original_filename, is_primary)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    $stmt->execute([
+        $talentId,
+        $uploadData['url'] ?? '',
+        $uploadData['url'] ?? null,
+        $uploadData['thumb_url'] ?? $uploadData['url'] ?? null,
+        null,
+        $uploadData['path'] ?? null,
+        $originalName,
+        $isPrimary ? 1 : 0,
     ]);
 
-    return (int) $rows[0]['id'];
+    return (int) db()->lastInsertId();
 }
 
 function delete_talent_photo_record(int $photoId): void
 {
-    supabase_rest('PATCH', 'talent_photos', ['id' => 'eq.' . $photoId], [
-        'deleted_at' => now_ts(),
-    ]);
+    $stmt = db()->prepare('UPDATE talent_photos SET deleted_at = ? WHERE id = ?');
+    $stmt->execute([now_ts(), $photoId]);
 }
 
-function update_photo_source(int $photoId, string $objectPath): void
+function update_photo_source(int $photoId, string $objectPath, string $thumbUrl): void
 {
-    // Cropping replaces the "clean" render source (imgbb_id) itself, so every
-    // thumb/medium URL generated from it afterwards reflects the crop —
-    // nothing gets cached/stale.
-    supabase_rest('PATCH', 'talent_photos', ['id' => 'eq.' . $photoId], [
-        'imgbb_id' => $objectPath,
-    ]);
+    // Cropping replaces both the "clean" source (imgbb_id, used as the next
+    // crop's source image) and the stored thumb URL — ImgBB has no on-the-fly
+    // transform, so the thumb has to be regenerated and re-stored.
+    $stmt = db()->prepare('UPDATE talent_photos SET imgbb_id = ?, image_thumb_url = ? WHERE id = ?');
+    $stmt->execute([$objectPath, $thumbUrl, $photoId]);
 }
 
 function set_primary_photo(int $talentId, int $photoId): void
 {
-    // Runs as a single Postgres transaction inside the DB function itself (see
-    // database/schema.sql) via PostgREST's RPC endpoint — keeps the unset-all
-    // then set-one swap atomic without a native Postgres client connection.
-    supabase_rest('POST', 'rpc/set_primary_photo', [], [
-        'p_talent_id' => $talentId,
-        'p_photo_id' => $photoId,
-    ]);
+    $pdo = db();
+    $pdo->beginTransaction();
+
+    try {
+        $stmt = $pdo->prepare('UPDATE talent_photos SET is_primary = 0 WHERE talent_id = ? AND deleted_at IS NULL');
+        $stmt->execute([$talentId]);
+
+        $stmt = $pdo->prepare('UPDATE talent_photos SET is_primary = 1 WHERE id = ? AND talent_id = ? AND deleted_at IS NULL');
+        $stmt->execute([$photoId, $talentId]);
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
 }

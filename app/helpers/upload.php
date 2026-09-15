@@ -1,11 +1,7 @@
 <?php
 
-function uploadImageToSupabase(string $tmpFilePath, string $originalName): array
+function uploadImageToCloudinary(string $tmpFilePath, string $originalName, string $folderName): array
 {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        throw new RuntimeException('Supabase storage is not configured.');
-    }
-
     if (!is_uploaded_file($tmpFilePath) && !file_exists($tmpFilePath)) {
         throw new RuntimeException('Uploaded file not found.');
     }
@@ -14,44 +10,87 @@ function uploadImageToSupabase(string $tmpFilePath, string $originalName): array
     $mime = finfo_file($finfo, $tmpFilePath);
     finfo_close($finfo);
 
-    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION) ?: 'jpg');
-    $baseName = bin2hex(random_bytes(12));
-    $objectPath = 'talents/' . date('Y/m') . '/' . $baseName . '.' . $extension;
-    $fullObjectPath = 'talents/' . date('Y/m') . '/' . $baseName . '-full.' . $extension;
+    $tempFiles = [];
+    $sourcePath = $tmpFilePath;
 
-    // Clean (unwatermarked) original — used only as the source for on-the-fly
-    // thumb/medium resizing, never shown at full size.
-    upload_raw_to_supabase($tmpFilePath, $objectPath, $mime);
-
-    // Watermarked copy — used for the full-size image_url (e.g. lightbox preview).
-    $watermarkedPath = create_watermarked_copy($tmpFilePath, $mime);
-    upload_raw_to_supabase($watermarkedPath ?? $tmpFilePath, $fullObjectPath, $mime);
-
-    if ($watermarkedPath) {
-        @unlink($watermarkedPath);
+    // Cap at 1200px wide — narrower originals are left untouched (no upscale,
+    // no re-encode/quality loss for images that are already small enough).
+    $resizedPath = resize_image_to_max_width($sourcePath, $mime, 1200);
+    if ($resizedPath) {
+        $tempFiles[] = $resizedPath;
+        $sourcePath = $resizedPath;
     }
 
-    $publicFullUrl = SUPABASE_URL . '/storage/v1/object/public/' . SUPABASE_BUCKET . '/' . $fullObjectPath;
+    // Clean (unwatermarked) — doubles as the manual-crop source. Thumb/crop URLs
+    // are generated live via Cloudinary's transform URLs (w_N,c_limit), so no
+    // separate thumb upload is needed like the ImgBB pipeline required.
+    $clean = cloudinary_upload_raw($sourcePath, $mime, $folderName);
+
+    // Watermarked copy — used for the full-size image_url (e.g. lightbox preview).
+    $watermarkedPath = create_watermarked_copy($sourcePath, $mime);
+    if ($watermarkedPath) {
+        $tempFiles[] = $watermarkedPath;
+    }
+    $full = cloudinary_upload_raw($watermarkedPath ?? $sourcePath, $mime, $folderName);
+
+    foreach ($tempFiles as $tempFile) {
+        @unlink($tempFile);
+    }
 
     return [
-        'url' => $publicFullUrl,
-        'path' => $objectPath,
+        'url' => $full['secure_url'],
+        'thumb_url' => cloudinary_transform_url($clean['public_id'], 100),
+        'path' => $clean['public_id'],
     ];
 }
 
-function upload_raw_to_supabase(string $filePath, string $objectPath, string $mime): void
+function uploadCroppedThumb(string $tmpFilePath, string $folderName): array
 {
-    $fileContents = file_get_contents($filePath);
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $tmpFilePath);
+    finfo_close($finfo);
+
+    // The crop tool only ever replaces the thumbnail/list-preview representation
+    // (imgbb_id + image_thumb_url) — the full watermarked lightbox image is left
+    // untouched, matching the "crop for main/list image only" design.
+    $clean = cloudinary_upload_raw($tmpFilePath, $mime, $folderName);
+
+    return [
+        'path' => $clean['public_id'],
+        'thumb_url' => cloudinary_transform_url($clean['public_id'], 100),
+    ];
+}
+
+function cloudinary_upload_raw(string $filePath, string $mime, string $folder): array
+{
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+        throw new RuntimeException('Cloudinary is not configured.');
+    }
+
+    $extensionMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $extension = $extensionMap[$mime] ?? 'jpg';
+
+    $timestamp = (string) time();
+    // Signature covers every non-file param, sorted by key, as key=value pairs
+    // joined with '&' (raw, not URL-encoded) — per Cloudinary's signing spec.
+    $signParams = ['folder' => $folder, 'timestamp' => $timestamp];
+    ksort($signParams);
+    $toSign = '';
+    foreach ($signParams as $key => $value) {
+        $toSign .= ($toSign === '' ? '' : '&') . $key . '=' . $value;
+    }
+    $signature = sha1($toSign . CLOUDINARY_API_SECRET);
 
     $ch = curl_init();
     curl_setopt_array($ch, [
-        CURLOPT_URL => SUPABASE_URL . '/storage/v1/object/' . SUPABASE_BUCKET . '/' . $objectPath,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $fileContents,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . SUPABASE_SERVICE_KEY,
-            'apikey: ' . SUPABASE_SERVICE_KEY,
-            'Content-Type: ' . $mime,
+        CURLOPT_URL => 'https://api.cloudinary.com/v1_1/' . CLOUDINARY_CLOUD_NAME . '/image/upload',
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => [
+            'file' => new CURLFile($filePath, $mime, 'upload.' . $extension),
+            'api_key' => CLOUDINARY_API_KEY,
+            'timestamp' => $timestamp,
+            'folder' => $folder,
+            'signature' => $signature,
         ],
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 60,
@@ -63,38 +102,92 @@ function upload_raw_to_supabase(string $filePath, string $objectPath, string $mi
     curl_close($ch);
 
     if ($response === false) {
-        throw new RuntimeException('Supabase upload failed: ' . $curlError);
+        throw new RuntimeException('Cloudinary upload failed: ' . $curlError);
     }
 
-    if ($httpCode < 200 || $httpCode >= 300) {
-        throw new RuntimeException('Supabase upload failed: ' . $response);
+    $decoded = json_decode($response, true);
+
+    if ($httpCode < 200 || $httpCode >= 300 || !isset($decoded['public_id'])) {
+        $message = $decoded['error']['message'] ?? $response;
+        throw new RuntimeException('Cloudinary upload failed: ' . $message);
     }
+
+    return $decoded;
 }
 
-function supabase_render_url(string $objectPath, int $width): string
+function cloudinary_transform_url(string $publicId, int $width): string
 {
-    // resize=contain is required or Supabase keeps the original height and only
-    // shrinks width, squishing/distorting the image instead of scaling it
-    // proportionally.
-    return SUPABASE_URL . '/storage/v1/render/image/public/' . SUPABASE_BUCKET . '/' . $objectPath
-        . '?width=' . $width . '&quality=70&resize=contain';
+    $encodedPublicId = implode('/', array_map('rawurlencode', explode('/', $publicId)));
+
+    return 'https://res.cloudinary.com/' . CLOUDINARY_CLOUD_NAME
+        . '/image/upload/w_' . $width . ',c_limit,f_auto,q_auto/' . $encodedPublicId;
 }
 
-function uploadCroppedThumb(string $tmpFilePath): string
+function cloudinary_folder_name(string $talentName): string
 {
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = finfo_file($finfo, $tmpFilePath);
-    finfo_close($finfo);
+    $name = trim(str_replace(['/', '\\'], '-', $talentName));
 
-    $extensionMap = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-    $extension = $extensionMap[$mime] ?? 'jpg';
-    $objectPath = 'talents/crops/' . date('Y/m') . '/' . bin2hex(random_bytes(12)) . '.' . $extension;
+    return 'talents/' . ($name !== '' ? $name : 'unknown');
+}
 
-    upload_raw_to_supabase($tmpFilePath, $objectPath, $mime);
+function resize_image_to_max_width(string $sourcePath, string $mime, int $maxWidth): ?string
+{
+    switch ($mime) {
+        case 'image/png':
+            $image = imagecreatefrompng($sourcePath);
+            break;
+        case 'image/webp':
+            $image = function_exists('imagecreatefromwebp') ? imagecreatefromwebp($sourcePath) : null;
+            break;
+        default:
+            $image = imagecreatefromjpeg($sourcePath);
+    }
 
-    // Returns the object path (not a public URL) — becomes the photo's new
-    // imgbb_id, so thumb/medium render URLs generated from it stay in sync.
-    return $objectPath;
+    if (!$image) {
+        return null;
+    }
+
+    $width = imagesx($image);
+    $height = imagesy($image);
+
+    if ($width <= $maxWidth) {
+        imagedestroy($image);
+        return null;
+    }
+
+    $newWidth = $maxWidth;
+    $newHeight = (int) round($height * ($maxWidth / $width));
+
+    $resized = imagecreatetruecolor($newWidth, $newHeight);
+
+    if ($mime === 'image/png' || $mime === 'image/webp') {
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+    }
+
+    imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+    imagedestroy($image);
+
+    $outputPath = tempnam(sys_get_temp_dir(), 'resize_');
+
+    switch ($mime) {
+        case 'image/png':
+            imagepng($resized, $outputPath);
+            break;
+        case 'image/webp':
+            if (function_exists('imagewebp')) {
+                imagewebp($resized, $outputPath);
+            } else {
+                imagepng($resized, $outputPath);
+            }
+            break;
+        default:
+            imagejpeg($resized, $outputPath, 90);
+    }
+
+    imagedestroy($resized);
+
+    return $outputPath;
 }
 
 function create_watermarked_copy(string $sourcePath, string $mime): ?string

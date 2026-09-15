@@ -6,7 +6,6 @@ require_once __DIR__ . '/../app/config/env.php';
 
 load_env(dirname(__DIR__) . '/.env');
 
-require_once __DIR__ . '/../app/config/supabase.php';
 require_once __DIR__ . '/../app/config/database.php';
 
 if (php_sapi_name() !== 'cli') {
@@ -24,9 +23,8 @@ if (!$username || !$password) {
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-supabase_rest('POST', 'admins', ['on_conflict' => 'username'], [
-    'username' => $username,
-    'password_hash' => $hash,
-]);
+$stmt = db()->prepare('INSERT INTO admins (username, password_hash) VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)');
+$stmt->execute([$username, $hash]);
 
 echo "Admin '{$username}' saved.\n";

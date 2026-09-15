@@ -29,12 +29,12 @@ include __DIR__ . '/../layout/header.php';
         <div class="photo-gallery">
             <?php foreach ($photos as $photo): ?>
                 <div class="photo-item" data-photo-id="<?= (int) $photo['id'] ?>">
-                    <img src="<?= e($photo['imgbb_id'] ? supabase_render_url($photo['imgbb_id'], 100) : $photo['image_url']) ?>" data-full="<?= e($photo['image_url']) ?>" alt="" class="photo-gallery-img<?= $photo['is_primary'] ? ' is-primary' : '' ?>">
+                    <img src="<?= e($photo['image_thumb_url'] ?: $photo['image_url']) ?>" data-full="<?= e($photo['image_url']) ?>" alt="" class="photo-gallery-img<?= $photo['is_primary'] ? ' is-primary' : '' ?>">
                     <div class="photo-item-actions">
                         <?php if (!$photo['is_primary']): ?>
                             <button type="button" class="btn-link set-primary-btn" data-photo-id="<?= (int) $photo['id'] ?>">Set primary</button>
                         <?php else: ?>
-                            <button type="button" class="btn-link crop-btn" data-photo-id="<?= (int) $photo['id'] ?>" data-crop-source="<?= e($photo['imgbb_id'] ? supabase_render_url($photo['imgbb_id'], 1200) : $photo['image_url']) ?>">Crop</button>
+                            <button type="button" class="btn-link crop-btn" data-photo-id="<?= (int) $photo['id'] ?>" data-crop-source="<?= e($photo['imgbb_id'] ? cloudinary_transform_url($photo['imgbb_id'], 1200) : $photo['image_url']) ?>">Crop</button>
                         <?php endif; ?>
                         <button type="button" class="btn-link btn-link-danger delete-photo-btn" data-photo-id="<?= (int) $photo['id'] ?>">Delete</button>
                     </div>
