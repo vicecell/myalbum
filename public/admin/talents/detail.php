@@ -29,7 +29,7 @@ include __DIR__ . '/../layout/header.php';
         <div class="photo-gallery">
             <?php foreach ($photos as $photo): ?>
                 <div class="photo-item" data-photo-id="<?= (int) $photo['id'] ?>">
-                    <img src="<?= e($photo['image_thumb_url'] ?: $photo['image_url']) ?>" data-full="<?= e($photo['image_url']) ?>" alt="" class="photo-gallery-img<?= $photo['is_primary'] ? ' is-primary' : '' ?>">
+                    <img src="<?= e($photo['image_thumb_url'] ?: $photo['image_url']) ?>" data-full="<?= e($photo['image_url']) ?>" data-size="<?= (int) $photo['image_bytes'] ?>" alt="" class="photo-gallery-img<?= $photo['is_primary'] ? ' is-primary' : '' ?>">
                     <div class="photo-item-actions">
                         <?php if (!$photo['is_primary']): ?>
                             <button type="button" class="btn-link set-primary-btn" data-photo-id="<?= (int) $photo['id'] ?>">Set primary</button>
@@ -88,6 +88,7 @@ include __DIR__ . '/../layout/header.php';
     <button type="button" class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Previous photo">&#8249;</button>
     <img src="" alt="" class="lightbox-img" id="lightboxImg">
     <button type="button" class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Next photo">&#8250;</button>
+    <span class="lightbox-size" id="lightboxSize"></span>
 </div>
 
 <div class="lightbox crop-overlay" id="cropModal">

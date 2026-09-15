@@ -29,8 +29,8 @@ function talent_has_any_photo(int $talentId): bool
 function insert_talent_photo(int $talentId, array $uploadData, ?string $originalName, bool $isPrimary): int
 {
     $stmt = db()->prepare('INSERT INTO talent_photos
-        (talent_id, image_url, image_display_url, image_thumb_url, image_delete_url, imgbb_id, original_filename, file_size_bytes, is_primary)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        (talent_id, image_url, image_display_url, image_thumb_url, image_delete_url, imgbb_id, original_filename, file_size_bytes, image_bytes, is_primary)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([
         $talentId,
         $uploadData['url'] ?? '',
@@ -40,6 +40,7 @@ function insert_talent_photo(int $talentId, array $uploadData, ?string $original
         $uploadData['path'] ?? null,
         $originalName,
         $uploadData['bytes'] ?? 0,
+        $uploadData['full_bytes'] ?? 0,
         $isPrimary ? 1 : 0,
     ]);
 

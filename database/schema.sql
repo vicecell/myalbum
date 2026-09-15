@@ -61,6 +61,8 @@ CREATE TABLE talent_photos (
     -- updated on crop, so it drifts slightly after that — close enough for a
     -- dashboard-level estimate).
     file_size_bytes INT UNSIGNED NOT NULL DEFAULT 0,
+    -- Bytes of just the watermarked-full object — shown in the lightbox preview.
+    image_bytes INT UNSIGNED NOT NULL DEFAULT 0,
     is_primary TINYINT(1) NOT NULL DEFAULT 0,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
