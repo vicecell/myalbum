@@ -31,6 +31,7 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/helpers/csrf.php';
 require_once __DIR__ . '/helpers/flash.php';
 require_once __DIR__ . '/helpers/sanitize.php';
+require_once __DIR__ . '/helpers/format.php';
 require_once __DIR__ . '/helpers/validation.php';
 require_once __DIR__ . '/helpers/auth.php';
 require_once __DIR__ . '/functions/city_functions.php';

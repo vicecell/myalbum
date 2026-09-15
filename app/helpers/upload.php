@@ -41,6 +41,7 @@ function uploadImageToCloudinary(string $tmpFilePath, string $originalName, stri
         'url' => $full['secure_url'],
         'thumb_url' => cloudinary_transform_url($clean['public_id'], 100),
         'path' => $clean['public_id'],
+        'bytes' => ($clean['bytes'] ?? 0) + ($full['bytes'] ?? 0),
     ];
 }
 

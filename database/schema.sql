@@ -57,6 +57,10 @@ CREATE TABLE talent_photos (
     image_delete_url VARCHAR(700) NULL,
     imgbb_id VARCHAR(700) NULL,
     original_filename VARCHAR(255) NULL,
+    -- Bytes of the clean + watermarked-full objects at upload time (not
+    -- updated on crop, so it drifts slightly after that — close enough for a
+    -- dashboard-level estimate).
+    file_size_bytes INT UNSIGNED NOT NULL DEFAULT 0,
     is_primary TINYINT(1) NOT NULL DEFAULT 0,
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

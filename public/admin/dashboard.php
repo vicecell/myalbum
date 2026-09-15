@@ -3,10 +3,11 @@ require_once __DIR__ . '/../../app/bootstrap.php';
 require_admin();
 
 $stats = [
-    ['label' => 'Total Talents', 'value' => count_talents()],
-    ['label' => 'Active Talents', 'value' => count_active_talents()],
-    ['label' => 'Total Cities', 'value' => count_cities()],
-    ['label' => 'Total Photos', 'value' => count_photos()],
+    ['label' => 'Total Talents', 'value' => (string) count_talents()],
+    ['label' => 'Active Talents', 'value' => (string) count_active_talents()],
+    ['label' => 'Total Cities', 'value' => (string) count_cities()],
+    ['label' => 'Total Photos', 'value' => (string) count_photos()],
+    ['label' => 'Photo Storage Used', 'value' => format_bytes(get_total_photo_size_bytes())],
 ];
 
 $pageTitle = 'Dashboard';
@@ -18,7 +19,7 @@ include __DIR__ . '/layout/header.php';
     <div class="stat-grid">
         <?php foreach ($stats as $stat): ?>
             <div class="stat-card">
-                <span class="stat-value"><?= (int) $stat['value'] ?></span>
+                <span class="stat-value"><?= e($stat['value']) ?></span>
                 <span class="stat-label"><?= e($stat['label']) ?></span>
             </div>
         <?php endforeach; ?>

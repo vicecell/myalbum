@@ -5,6 +5,11 @@ function count_photos(): int
     return (int) db()->query('SELECT COUNT(*) FROM talent_photos WHERE deleted_at IS NULL')->fetchColumn();
 }
 
+function get_total_photo_size_bytes(): int
+{
+    return (int) db()->query('SELECT COALESCE(SUM(file_size_bytes), 0) FROM talent_photos WHERE deleted_at IS NULL')->fetchColumn();
+}
+
 function get_talent_photo(int $photoId): ?array
 {
     $stmt = db()->prepare('SELECT * FROM talent_photos WHERE id = ? AND deleted_at IS NULL LIMIT 1');
@@ -24,8 +29,8 @@ function talent_has_any_photo(int $talentId): bool
 function insert_talent_photo(int $talentId, array $uploadData, ?string $originalName, bool $isPrimary): int
 {
     $stmt = db()->prepare('INSERT INTO talent_photos
-        (talent_id, image_url, image_display_url, image_thumb_url, image_delete_url, imgbb_id, original_filename, is_primary)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        (talent_id, image_url, image_display_url, image_thumb_url, image_delete_url, imgbb_id, original_filename, file_size_bytes, is_primary)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     $stmt->execute([
         $talentId,
         $uploadData['url'] ?? '',
@@ -34,6 +39,7 @@ function insert_talent_photo(int $talentId, array $uploadData, ?string $original
         null,
         $uploadData['path'] ?? null,
         $originalName,
+        $uploadData['bytes'] ?? 0,
         $isPrimary ? 1 : 0,
     ]);
 
