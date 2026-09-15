@@ -73,9 +73,13 @@ function cloudinary_upload_raw(string $filePath, string $mime, string $folder): 
     $extension = $extensionMap[$mime] ?? 'jpg';
 
     $timestamp = (string) time();
+    // Force the stored asset itself to WebP (not just the on-the-fly f_auto
+    // delivery transform used for thumb/crop-source URLs) — smaller storage,
+    // and the full/watermarked object's URL is served as-is with no transform.
+    $format = 'webp';
     // Signature covers every non-file param, sorted by key, as key=value pairs
     // joined with '&' (raw, not URL-encoded) — per Cloudinary's signing spec.
-    $signParams = ['folder' => $folder, 'timestamp' => $timestamp];
+    $signParams = ['folder' => $folder, 'format' => $format, 'timestamp' => $timestamp];
     ksort($signParams);
     $toSign = '';
     foreach ($signParams as $key => $value) {
@@ -92,6 +96,7 @@ function cloudinary_upload_raw(string $filePath, string $mime, string $folder): 
             'api_key' => CLOUDINARY_API_KEY,
             'timestamp' => $timestamp,
             'folder' => $folder,
+            'format' => $format,
             'signature' => $signature,
         ],
         CURLOPT_RETURNTRANSFER => true,
