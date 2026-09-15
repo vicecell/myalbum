@@ -4,37 +4,33 @@ Mobile-first PHP-native admin app for managing a private talent database. See `C
 
 ## Status
 
-All 6 MVP milestones complete: project foundation, authentication (session-based, CSRF, password hashing), city CRUD, talent CRUD (search + city filter + rate), multi-photo upload via Supabase Storage (primary photo, delete), dashboard summary + settings page. Deletes are soft (`deleted_at`), not physical row removal.
+All 6 MVP milestones complete: project foundation, authentication (session-based, CSRF, password hashing), city CRUD, talent CRUD (search + city filter + rate), multi-photo upload (primary photo, delete, manual crop), dashboard summary + settings page. Deletes are soft (`deleted_at`), not physical row removal.
 
-Photo hosting was switched from ImgBB to Supabase Storage, the database was switched from local MySQL to Supabase Postgres, and — after production (CentOS 7) turned out to have a system `libpq` too old for Supabase's required SCRAM auth, with no upgrade path left for that OS — all database access was rewritten to go through Supabase's PostgREST HTTP API instead of a native Postgres connection (`app/config/database.php`'s `supabase_rest()`/`supabase_rest_count()`). All of this deviates from the original blueprint spec, done at user request. Needs a public storage bucket — see Setup below. No native Postgres client (`pdo_pgsql`, `psql`) is needed anywhere anymore, only `curl`.
+Storage/DB history (in order): ImgBB → Supabase Storage → Cloudflare R2 (never deployed) → ImgBB again → **Cloudinary** (current) for photos; local MySQL → Supabase Postgres (via PostgREST, since production's CentOS 7 `libpq` was too old for Supabase's required SCRAM auth) → **local MySQL/MariaDB via plain PDO** (current) for the database, after Supabase's account got billing-restricted. The app now has zero dependency on Supabase. `app/config/database.php` exposes a plain `db(): PDO` singleton; `app/helpers/upload.php` talks to Cloudinary's signed upload API + builds on-demand transform URLs (`cloudinary_transform_url()`) for thumbnails/crop-source — no separate thumb upload needed.
 
 Seed the admin account once with:
 ```bash
 php scripts/setup_admin.php <username> <password>
 ```
-Then import `database/seed.sql` for the default city list (optional).
 
 ## Requirements
 
 - PHP 8+
-- `curl`, `gd` (freetype + webp) extensions
-- A Supabase project (Postgres database + Storage)
+- `pdo_mysql`, `curl`, `gd` (freetype + webp) extensions
+- A local/self-hosted MySQL or MariaDB server
+- A Cloudinary account (free tier, no card required) for photo storage
 
 ## Setup
 
 1. Copy `.env.example` to `.env` and fill in:
-   - `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` / `SUPABASE_BUCKET` — from Project Settings → API (`service_role` key — server-side only, never expose to frontend; used for both Storage uploads and the PostgREST Data API).
-   - `WATERMARK_TEXT` — text burned into the bottom-right corner of every uploaded photo (GD + bundled font at `app/assets/fonts/watermark.ttf`).
-
-   The storage bucket must exist and be public; create it once with:
+   - `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASS` — your MySQL/MariaDB connection.
+   - `CLOUDINARY_URL` — from the Cloudinary dashboard home (`cloudinary://API_KEY:API_SECRET@CLOUD_NAME`).
+   - `WATERMARK_TEXT` — text burned into the bottom-right corner of every uploaded photo's full-size copy (GD + bundled font at `app/assets/fonts/watermark.ttf`); thumbnails are never watermarked.
+2. Create the database and apply the schema:
    ```bash
-   curl -X POST "$SUPABASE_URL/storage/v1/bucket" \
-     -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
-     -H "apikey: $SUPABASE_SERVICE_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"id":"talent-photos","name":"talent-photos","public":true}'
+   mysql -u root -p -e "CREATE DATABASE talent_database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   mysql -u root -p talent_database < database/schema.sql
    ```
-2. Apply the schema (`database/schema.sql` is PostgreSQL DDL, includes the `set_primary_photo` RPC function) against the Supabase database via the SQL Editor in the Supabase dashboard (no local Postgres client needed).
 3. Run the app with PHP's built-in server (from project root):
    ```bash
    php -S localhost:8000 -t public
@@ -43,3 +39,15 @@ Then import `database/seed.sql` for the default city list (optional).
 5. Visit `http://localhost:8000/_dbcheck.php` to verify the database connection (only works when `APP_ENV=local`).
 
 `admin/` and `api/` live under `public/` (`public/admin/`, `public/api/`) specifically so a real Apache/Nginx vhost with its document root pointed at `public/` serves them with zero extra rewrite rules — no `router.php`/custom routing needed anywhere.
+
+## Schema changes / migrations
+
+`database/schema.sql` is the full, current schema — always used as-is for a brand new install (step 2 above).
+
+For an **existing** install that needs to catch up to a schema change, numbered incremental scripts live in `database/migrations/` (e.g. `0001_add_photo_file_size_bytes.sql`) and `database/schema.sql` is always kept in sync with the same change (new installs never need to run migrations — they get everything from `schema.sql` directly). Apply pending migrations with:
+```bash
+php scripts/migrate.php
+```
+This tracks what's already been applied in a `schema_migrations` table, so it's safe to run repeatedly (already-applied migrations are skipped). Run it after every `git pull` that touches `database/schema.sql` or `database/migrations/`.
+
+Each migration file must contain exactly one SQL statement (the runner executes files as single `PDO::exec()` calls — no multi-statement support).
