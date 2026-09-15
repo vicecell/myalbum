@@ -1,11 +1,18 @@
 -- MySQL/MariaDB schema. Run against the app's local database.
+--
+-- Compatible with MariaDB 5.5+ (production target): no JSON column type (added
+-- MariaDB 10.2), no DATETIME auto-timestamps (added MariaDB 10.0/MySQL 5.6.5;
+-- pre-that, only a single TIMESTAMP column per table can auto-init/update, so
+-- only created_at uses that — updated_at is plain, app-managed if ever needed).
+-- CHECK constraints are parsed but silently unenforced pre-MariaDB 10.2.1 —
+-- kept here as self-documentation, harmless no-op on old servers.
 
 CREATE TABLE admins (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL DEFAULT NULL,
     UNIQUE KEY unique_admin_username (username)
 ) ENGINE=InnoDB;
 
@@ -13,8 +20,8 @@ CREATE TABLE cities (
     id INT AUTO_INCREMENT PRIMARY KEY,
     city_name VARCHAR(150) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL DEFAULT NULL,
     deleted_at DATETIME NULL DEFAULT NULL,
     UNIQUE KEY unique_city_name (city_name)
 ) ENGINE=InnoDB;
@@ -26,11 +33,12 @@ CREATE TABLE talents (
     description TEXT NOT NULL,
     video_url VARCHAR(500) NULL,
     rate VARCHAR(100) NULL,
-    -- Array of {"label": "...", "url": "..."} objects, e.g. Instagram/portfolio links.
-    links JSON NOT NULL,
+    -- JSON array of {"label": "...", "url": "..."} objects, stored as TEXT (no
+    -- native JSON type on MariaDB 5.5) — encoded/decoded in PHP.
+    links TEXT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NULL DEFAULT NULL,
     deleted_at DATETIME NULL DEFAULT NULL,
     CONSTRAINT fk_talents_city FOREIGN KEY (city_id) REFERENCES cities(id)
         ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -51,7 +59,7 @@ CREATE TABLE talent_photos (
     original_filename VARCHAR(255) NULL,
     is_primary TINYINT(1) NOT NULL DEFAULT 0,
     sort_order INT NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME NULL DEFAULT NULL,
     CONSTRAINT fk_talent_photos_talent FOREIGN KEY (talent_id) REFERENCES talents(id)
         ON DELETE CASCADE ON UPDATE CASCADE,
